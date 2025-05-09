@@ -1,0 +1,72 @@
+version: '3.3'
+
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=creditbpo
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=your-secret-key-here
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 backend 0.0.0.0
+      - DB_NAME=creditbpo
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge 
